@@ -101,20 +101,6 @@ var dragged = false
 var click_source = null
 var target_state = false
 
-func all(seq, test:Callable):
-	var result = true
-	for item in seq:
-		if !test.call(item):
-			result = false
-	return result
-
-func any(seq, test:Callable):
-	var result = false
-	for item in seq:
-		if test.call(item):
-			result = true
-	return result
-
 func mouse_entered(source):
 	if dragging:
 		dragged = true
@@ -160,17 +146,25 @@ func _gui_input(event, source):
 		ctx.add_icon_item(icon, 'Copy Properties as Dictionary')
 
 		ctx.add_separator()
-		ctx.add_item('Select All')
-		if selected_properties:
+
+		var test = func(x): return x.button_pressed
+
+		if !checks.all(test):
+			ctx.add_item('Select All')
+		if checks.any(test):
 			icon = root.get_theme_icon('Clear', 'EditorIcons')
 			ctx.add_icon_item(icon, 'Deselect All')
-		
-		print(any(categories[source.category.name], func(x): return x.button_pressed))
 
 		if source.category:
-			ctx.add_item('Select Category')
+			if !categories[source.category.name].all(test):
+				ctx.add_item('Select Entire Category')
+			if categories[source.category.name].any(test):
+				ctx.add_item('Deselect Entire Category')
 		if source.section:
-			ctx.add_item('Select Section')
+			if !sections[source.section.name].all(test):
+				ctx.add_item('Select Entire Section')
+			if sections[source.section.name].any(test):
+				ctx.add_item('Deselect Entire Section')
 
 		var pos = root.get_global_mouse_position()
 		pos += root.get_screen_position()
@@ -243,17 +237,17 @@ func item_selected(item):
 					out[name] = var_to_str(data[name])
 			DisplayServer.clipboard_set(JSON.stringify(out, '\t'))
 		'Select All':
-			for check in checks:
-				check.button_pressed = true
-		'Select Category':
-			for check in categories[source.category.name]:
-				check.button_pressed = true
-		'Select Section':
-			for check in sections[source.section.name]:
-				check.button_pressed = true
+			checks.map(func(c): c.button_pressed = true)
 		'Deselect All':
-			for check in checks:
-				check.button_pressed = false
+			checks.map(func(c): c.button_pressed = false)
+		'Select Entire Category':
+			categories[source.category.name].map(func(c): c.button_pressed = true)
+		'Deselect Entire Category':
+			categories[source.category.name].map(func(c): c.button_pressed = false)
+		'Select Entire Section':
+			sections[source.section.name].map(func(c): c.button_pressed = true)
+		'Deselect Entire Section':
+			sections[source.section.name].map(func(c): c.button_pressed = false)
 
 # ******************************************************************************
 # internal classes
@@ -295,7 +289,7 @@ class _InspectorContextMenu:
 		if obj:
 			obj.add_child(self)
 
-		if obj and cb:
+		if cb:
 			item_selected.connect(cb)
 
 		index_pressed.connect(self._on_index_pressed)
