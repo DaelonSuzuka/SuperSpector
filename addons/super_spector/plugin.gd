@@ -5,7 +5,6 @@ extends EditorPlugin
 
 var inspector_plugin
 
-
 func _enter_tree():
 	inspector_plugin = preload('inspector_plugin.gd').new()
 	inspector_plugin.plugin = self
