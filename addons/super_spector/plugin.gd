@@ -6,7 +6,7 @@ extends EditorPlugin
 var inspector_plugin
 
 func _enter_tree():
-	inspector_plugin = preload('res://addons/inspector_test/inspector_plugin.gd').new()
+	inspector_plugin = preload('inspector_plugin.gd').new()
 	inspector_plugin.plugin = self
 	
 	var selection = get_editor_interface().get_selection()
