@@ -30,54 +30,91 @@ func _can_handle(object) -> bool:
 func _parse_end(object: Object) -> void:
 	checks.clear()
 
+	# var prop = get_inspector_properties()[0]
+	# print(prop)
+	# var _class = prop.get_class()
+	# print(_class)
+	# print(ClassDB.class_exists(_class))
+	# print(JSON.stringify(ClassDB.class_get_method_list(_class)))
+	# print(prop._get_property_list())
 
-	var prop = get_inspector_properties()[0]
-	print(prop)
-	print(prop.get_class())
-	print(prop._get_property_list())
-
-	for node in get_inspector_properties():
+	for property in get_inspector_properties():
 		var hbox = HBox.new()
 		hbox.gui_input.connect(Callable(self._gui_input).bind(hbox))
 
-		var check = hbox.add(Check.new())
+		var check = hbox.add(Check.new(property))
 		checks.append(check)
-		check.property = node
-		check.gui_input.connect(Callable(self._gui_input).bind(hbox))
+		check.gui_input.connect(Callable(self._gui_input).bind(check))
+		check.mouse_entered.connect(Callable(self.mouse_entered).bind(check))
 
-		var parent = node.get_parent()
-		parent.remove_child(node)
+		var parent = property.get_parent()
+		parent.remove_child(property)
 		parent.add_child(hbox)
 
-		hbox.add(node)
+		hbox.add(property)
 
-		node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		node.anchor_right = 1
+		property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		property.anchor_right = 1
 
 var ctx = null
+var dragging = false
+var dragged = false
+var click_source = null
+var target_state = false
+
+func mouse_entered(source):
+	if dragging:
+		dragged = true
+		if source != click_source:
+			source.set_pressed(target_state)
 
 func _gui_input(event, source):
-	if !(event is InputEventMouseButton) or !event.pressed:
-		return
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if source is CheckBox:
+				if event.pressed:
+					dragging = true
+					click_source = source
+					target_state = !click_source.button_pressed
+					click_source.button_pressed = !click_source.button_pressed
+				if !event.pressed:
+					if dragging:
+						if !dragged:
+							click_source.button_pressed = !click_source.button_pressed
+						dragged = false
+					dragging = false
 
-	if event.button_index == MOUSE_BUTTON_RIGHT:
-		if is_instance_valid(ctx):
-			ctx.queue_free()
+		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			if is_instance_valid(ctx):
+				ctx.queue_free()
 
-		var inspector = plugin.get_editor_interface().get_inspector()
+			var inspector = plugin.get_editor_interface().get_inspector()
 
-		ctx = ContextMenu.new(inspector, self.item_selected)
+			ctx = ContextMenu.new(inspector, self.item_selected)
 
-		ctx.add_item('penis')
-		ctx.add_item('also penis')
+			ctx.add_item('Copy Selected Properties')
+			ctx.add_item('Paste Selected Properties')
+			ctx.add_separator()
+			ctx.add_item('Select All in Category')
+			ctx.add_item('Select All in Section')
+			ctx.add_item('Clear Selected Properties')
 
-		var root = plugin.get_editor_interface().get_base_control()
-		var pos = root.get_global_mouse_position()
-		pos += root.get_screen_position()
-		ctx.open(pos)
+			var root = plugin.get_editor_interface().get_base_control()
+			var pos = root.get_global_mouse_position()
+			pos += root.get_screen_position()
+			ctx.open(pos)
 	
 func item_selected(item):
 	print(item)
+
+	match item:
+		'Copy Selected Properties':
+			pass
+		'Paste Selected Properties':
+			pass
+		'Clear Selected Properties':
+			for check in checks:
+				check.button_pressed = false
 
 # ******************************************************************************
 
@@ -86,8 +123,10 @@ class Check:
 
 	var property = null
 
-	func _init() -> void:
-		tooltip_text = 'Select this property'
+	func _init(_property) -> void:
+		property = _property
+
+		# tooltip_text = _property.get_label()
 
 
 class HBox:
